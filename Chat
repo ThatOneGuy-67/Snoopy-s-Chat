@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  background:
+    linear-gradient(rgba(50,50,50,0.8), rgba(50,50,50,0.8)),
+    url("https://i.pinimg.com/originals/11/cf/ee/11cfeef9eaa56c71a6eeb9933f933492.gif");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  font-family: Arial, sans-serif;
+  color:#fff;
+  padding:10px;
+  text-align:center;
+}
+
+.glass{
+  background: rgba(30,30,30,0.85);
+  backdrop-filter: blur(10px);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:12px;
+  padding:12px;
+}
+
+#login{
+  height:460px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+
+#chatScreen{ display:none; }
+
+.chatWrap{
+  max-width:900px;
+  margin:30px auto;
+}
+
+.rules{
+  max-width:500px;
+  font-size:13px;
+  margin-bottom:12px;
+  text-align:left;
+}
+
+input{
+  padding:10px;
+  margin:5px;
+  width:80%;
+  max-width:400px;
+  background: rgba(255,255,255,0.15);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:8px;
+  color:#fff;
+}
+
+button{
+  padding:10px 18px;
+  margin:5px;
+  background: rgba(255,255,255,0.2);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:8px;
+  cursor:pointer;
+  color:#fff;
+}
+
+button:hover{ background: rgba(255,255,255,0.35); }
+
+#chat{
+  height:480px;
+  overflow-y:auto;
+  margin-bottom:15px;
+  text-align:left;
+}
+
+.msg{ margin-bottom:6px; }
+.msg img{
+  max-width:300px;
+  max-height:300px;
+  border:2px solid #fff;
+  border-radius:6px;
+  display:block;
+  margin-top:5px;
+}
+
+.admin{ color:#ff5555; }
+
+.btn{
+  font-size:12px;
+  margin-left:6px;
+  cursor:pointer;
+  color:#aaa;
+}
+.btn:hover{ color:red; }
+
+#online{
+  color:#00ff00;
+  font-size:13px;
+  margin-bottom:8px;
+}
+
+#adminPanel{
+  display:none;
+  margin-bottom:12px;
+  background: rgba(50,0,0,0.6);
+  border:1px solid #d88;
+  border-radius:10px;
+  padding:10px;
+}
+
+.adminGrid{
+  display:flex;
+  gap:15px;
+}
+
+.adminLeft{
+  flex:2;
+  text-align:left;
+}
+
+.adminRight{
+  flex:1;
+  background: rgba(80,80,80,0.5);
+  border-radius:8px;
+  padding:8px;
+  font-size:12px;
+  text-align:left;
+}
+
+.adminRight b{
+  display:block;
+  margin-bottom:6px;
+}
+
+#logs{
+  display:none;
+  font-size:12px;
+  max-height:150px;
+  overflow-y:auto;
+  margin-top:8px;
+}
+
+#commandsLog{
+  display:block;
+  font-size:12px;
+  max-height:100px;
+  overflow-y:auto;
+  margin-bottom:6px;
+  color:#0ff;
+}
+
+#sendBar{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  align-items:center;
+  position:relative;
+}
+
+#gifPicker{
+  position:absolute;
+  bottom:60px;
+  left:50%;
+  transform:translateX(-50%);
+  width:380px;
+  max-height:260px;
+  overflow-y:auto;
+  background:rgba(20,20,20,0.98);
+  border:2px solid rgba(255,255,255,0.3);
+  border-radius:12px;
+  padding:12px;
+  display:none;
+  z-index:999;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+
+.gifGrid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.gifGrid img{
+  width:100%;
+  cursor:pointer;
+  border-radius:8px;
+  border:2px solid #555;
+  transition:all 0.2s ease;
+}
+
+.gifGrid img:hover{
+  border-color:#888;
+  transform:scale(1.05);
+}
+
+#gifBtn {
+  padding:10px;
+  font-size:20px;
+  background: rgba(255,255,255,0.2);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:6px;
+  cursor:pointer;
+  color:#fff;
+}
+#gifBtn:hover { background: rgba(255,255,255,0.35); }
+
+#sendBar input[type=text]{
+  width:50%;
+  max-width:400px;
+}
+
+.footer{
+  margin-top:15px;
+  font-size:12px;
+  color:#ccc;
+}
+
+.backBtn{
+  font-size:12px;
+  background: rgba(255,255,255,0.2);
+}
+
+/* Shake animation */
+@keyframes shake {
+  0% { transform: translateX(0px); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+  100% { transform: translateX(0px); }
+}
+
+.shake {
+  animation: shake 0.5s;
+}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="glass">
+  <h1>Snoopy’s Chat</h1>
+  <h3>Enter Username</h3>
+
+  <div class="rules glass">
+    <b>Rules:</b><br>
+    • Be respectful<br>
+    • No spamming<br>
+    • No harassment<br>
+    • NO CUSSING<br>
+    • Admins can mute/ban/troll<br>
+    • Have fun : )
+  </div>
+
+  <input id="usernameInput" placeholder="Username (min 3 chars)">
+  <input id="adminPass" type="password" placeholder="Admin password (optional)">
+  <button onclick="enterChat()">ENTER CHAT</button>
+
+  <div class="footer">@Snoopy’s Hub</div>
+</div>
+
+<!-- CHAT -->
+<div id="chatScreen" class="glass chatWrap">
+  <button class="backBtn" onclick="goBack()">← Change Username</button>
+
+  <h1>Snoopy’s Chat</h1>
+  <div id="online">Online: 0</div>
+
+  <div id="adminPanel">
+    <b>ADMIN PANEL</b><br><br>
+    <div id="commandsLog"></div>
+    <div class="adminGrid">
+      <div class="adminLeft">
+        <button id="clearChatBtn" onclick="clearChat()">CLEAR USER CHAT</button>
+        <button id="deleteHistoryBtn" onclick="deleteHistory()">💬 DELETE ALL HISTORY</button>
+        <button id="clearGifsBtn" onclick="clearGifs()">🧹 CLEAR ALL GIFS</button>
+        <button id="toggleLogsBtn" onclick="toggleLogs()">TOGGLE LOGS</button>
+        <div id="logs"></div>
+      </div>
+      <div class="adminRight" id="commandsPanel">
+        <b>Commands</b><br>
+        /mute &lt;user&gt;<br>
+        /unmute &lt;user&gt;<br>
+        /ban &lt;user&gt;<br>
+        /unban &lt;user&gt;<br>
+        /kick &lt;user&gt;<br>
+        /clear<br>
+        /deleteall<br>
+        /color &lt;color&gt;<br>
+        /troll &lt;user&gt;<br>
+        /shake &lt;user&gt;<br>
+        /spam &lt;user&gt;<br>
+        /rainbow<br>
+        /del &lt;msgKey&gt;<br>
+      </div>
+    </div>
+  </div>
+
+  <div id="chat" class="glass"></div>
+
+  <div id="sendBar">
+    <button id="gifBtn" onclick="toggleGifPicker()">🎬</button>
+    <input id="msg" type="text" placeholder="Type a message">
+    <button onclick="send()">Send</button>
+
+    <div id="gifPicker">
+      <div class="gifGrid" id="gifGrid"></div>
+    </div>
+  </div>
+
+  <div class="footer">@Snoopy’s Hub</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAUh8VuVTZJ4kPZF203-bml44dtHCDQRl8",
+  authDomain: "snoopys-chat.firebaseapp.com",
+  databaseURL: "https://snoopys-chat-default-rtdb.firebaseio.com",
+  projectId: "snoopys-chat"
+};
+firebase.initializeApp(firebaseConfig);
+
+const chatDB = firebase.database().ref("globalChat");
+const adminDB = firebase.database().ref("admin");
+const onlineDB = firebase.database().ref("online");
+
+const ADMIN_PASSWORD="104";
+const MOD_PASSWORD="md";
+const OWNER_PASSWORD="th@t";
+
+let username="";
+let role="user";
+let isAdmin=false;
+let isMod=false;
+let mutedUsers={};
+let userColors={};
+const badWords=["fuck","shit","bitch","asshole","nigger","nigga"];
+
+// Cat GIFs
+const catGifs=[ 
+  "https://media.tenor.com/_WZy7E7hoTcAAAAM/cat-smile.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGtuc3FlOXV0NnRnejU1MTgxZjRhMXJuM2xlOHU1b3Bnb2t5NHBtYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/901mxGLGQN2PyCQpoc/giphy.gif",
+  "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWZyeWczaWFscmEwOGU5Y2Jmempydzhnb2UwdWdybHcwdnhhY2ptMSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/v3Rb7dGuvkmaRi6qei/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW56aXVyeTQwNGVodDhzdml1N3NlYmZuaTRiZnpxMjdiMWo1b2gxbCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/In0Lpu4FVivjISX9HT/giphy.webp",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW56aXVyeTQwNGVodDhzdml1N3NlYmZuaTRiZnpxMjdiMWo1b2gxbCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/OHRF8LZis06OiPDJby/giphy.webp",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW56aXVyeTQwNGVodDhzdml1N3NlYmZuaTRiZnpxMjdiMWo1b2gxbCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/paf7IOKOacbzPinHQC/giphy.webp",
+  "https://i.giphy.com/fiWRwKU7MgXl750Kfk.webp",
+  "https://media.tenor.com/Ti6AFXIRrGsAAAAM/meme-funny.gif",
+  "https://media.tenor.com/Ikyo4TNzZowAAAAM/cat-cats.gif",
+  "https://media.tenor.com/zQkW73MDUN0AAAAM/haha-so-funny-haha-not-funny.gif",
+  "https://media.tenor.com/2tELXVnbPgcAAAAM/demon-cat.gif",
+  "https://media.tenor.com/QWemspX4xQgAAAAm/cat-eating-chips.webp",
+  "https://media.tenor.com/GJUz8DogSTUAAAAm/cute-cat-cutie.webp",
+  "https://media.tenor.com/Xj0I2vMUoOIAAAAM/qazqaz.gif",
+  "https://media.tenor.com/1XN_85VcCYAAAAAM/masoncord-cat.gif",
+  "https://media.tenor.com/9Ik02IDXcekAAAAM/cat-cat-meme.gif",
+  "https://media.tenor.com/GGU4qDachzwAAAAM/cheese-challenge-cat.gif",
+  "https://media.tenor.com/uF-fNPC2DKMAAAA1/kitty-kiss-cat-kiss.webp",
+  "https://media.tenor.com/4DiFwww6548AAAAm/kitty.webp",
+  "https://media.tenor.com/_JAHu0Z6oIgAAAAM/waffle-cat.gif",
+  "https://media.tenor.com/GAYqzdUDMPIAAAAM/rigby-rigby-cat.gif",
+  "https://media.tenor.com/i9lcgU4sWnkAAAAm/wawa-oh-the-misery.webp",
+  "https://media.tenor.com/aH6qp6K6lO4AAAAm/apple-apple-cat.webp",
+  "https://media.tenor.com/9MlInP80F58AAAAm/cat-tongue-shake-cat-meme.webp",
+  "https://media.tenor.com/5x1_L18QtucAAAAM/silly-cat.gif",
+  "https://media.tenor.com/SuVGs-GL7RoAAAAm/shocked-shocked-cat.webp",
+  "https://media.tenor.com/QIL_2SBkkQ4AAAAm/cat-bleh-meme-cat-blehh.webp",
+  "https://media.tenor.com/sVIdqBeLUyMAAAAM/cat-cats.gif",
+  "https://media.tenor.com/MO2mf7xZUV0AAAA1/cat-dancing-gatinho-dançando.webp",
+  "https://media.tenor.com/yZPGL8Byn2oAAAAM/cat.gif",
+  "https://media.tenor.com/S-Ca_RhnhB4AAAAm/cat-eat-funny-cat.webp",
+  "https://media.tenor.com/Bav2QWeveKgAAAAm/best-banana-cat.webp",
+  "https://media.tenor.com/ahqJraBL8r8AAAAm/cutie-cute-cat.webp",
+  "https://media.tenor.com/yO21gfpez0kAAAAM/sharkcat-memecoin.gif",
+  "https://media.tenor.com/OlCtiChZx_gAAAAM/гта-5.gif",
+  "https://media.tenor.com/ZksJbG5NhIQAAAAm/cat-kitten.webp",
+  "https://media.tenor.com/lWF4dbjLxAoAAAAm/maxwell-maxwell-cat.webp",
+  "https://media.tenor.com/yTY0nDdlAWIAAAAm/catcoin-cat.webp",
+  "https://media.tenor.com/W8T7K5fVzoEAAAAM/cat-vaccum-cat-automatic.gif",
+  "https://media.tenor.com/U8qmomzRKcoAAAAM/cat-cat-dancing.gif",
+  "https://media.tenor.com/WKOv-y9AKrYAAAAM/toes.gif",
+  "https://media.tenor.com/vYt0nB4LceIAAAAM/balls-238.gif",
+  "https://media.tenor.com/GAYqzdUDMPIAAAAM/rigby-rigby-cat.gif",
+  "https://media.tenor.com/f0iVpqQevsQAAAAm/silly-cat.webp",
+  "https://media.tenor.com/opE011ucJ6kAAAAM/dancing-cat.gif",
+  "https://media.tenor.com/tw-XIDnLvzMAAAAM/cat.gif",
+  "https://media.tenor.com/wNA4hiEeUIQAAAAm/cat-meme-cat-dance.webp",
+  "https://media.tenor.com/v300AGRTC7gAAAA1/cat-cat-meme.webp",
+  "https://media.tenor.com/VJpuBvaRK4gAAAAM/cat-cute.gif",
+  "https://media.tenor.com/0KfCCLD0HJ0AAAAM/cat-meme-cat-funny.gif",
+  "https://media.tenor.com/ULlFZmjJz3kAAAAm/cat.webp",
+  "https://media.tenor.com/6gpOBQhRiy0AAAAm/crazy-cat.webp",
+  "https://media.tenor.com/XIQl6jYxvaUAAAAM/cats-catz.gif",
+  "https://media.tenor.com/wM-zfYHdc1IAAAAM/happybirthdaya-d.gif",
+  "https://media.tenor.com/FZEiIhKTJB0AAAAm/cat-meme-cat.webp",
+  "https://media.tenor.com/Gp_VmQ5pEZIAAAAM/kitty-cat.gif",
+  "https://media.tenor.com/JqZmnztcLWEAAAAM/hey-funny-cat.gif",
+];
+
+function enterChat(){
+  const inputName=usernameInput.value.trim();
+  const pass=adminPass.value;
+
+  if(pass===OWNER_PASSWORD){
+    username=inputName || "👑ThatOneGuy👑";
+    isAdmin=true;
+    isMod=false;
+    role="owner";
+  } else if(pass===ADMIN_PASSWORD){
+    username=inputName || "🥞Admin🥞";
+    isAdmin=true;
+    isMod=false;
+    role="admin";
+  } else if(pass===MOD_PASSWORD){
+    username=inputName || "🍔Mod🍔";
+    isAdmin=false;
+    isMod=true;
+    role="mod";
+  } else {
+    username=inputName;
+    isAdmin=false;
+    isMod=false;
+    role="user";
+    if(username.length<3) return alert("Username too short");
+  }
+
+  // Show admin panel only for admins/owner
+  if(role==="owner"||role==="admin"){
+    adminPanel.style.display="block";
+  } else {
+    adminPanel.style.display="none";
+  }
+
+  onlineDB.child(username).once("value",o=>{
+    if(o.exists()) return alert("Username already in use");
+    adminDB.child("banned").once("value",s=>{
+      if(s.val() && s.val()[username]) return alert("You are banned");
+
+      login.style.display="none";
+      chatScreen.style.display="block";
+
+      onlineDB.child(username).set(true);
+      onlineDB.child(username).onDisconnect().remove();
+    });
+  });
+}
+
+function goBack(){
+  onlineDB.child(username).remove();
+  chatScreen.style.display="none";
+  login.style.display="flex";
+}
+
+onlineDB.on("value",s=>{ online.innerText="Online: "+(s.numChildren()||0); });
+adminDB.child("muted").on("value",s=>mutedUsers=s.val()||{});
+
+// Send handler
+function send(){
+  const m=msg.value.trim();
+  if(!m) return;
+  if(mutedUsers[username]) return alert("You are muted");
+
+  if(m.startsWith("/")){
+    handleCommand(m);
+  } else {
+    chatDB.push({name:username,msg:m,admin:isAdmin,role:role,color:userColors[username]||null,time:Date.now()});
+  }
+  msg.value="";
+}
+
+// Command handler
+function handleCommand(cmdText){
+  const parts = cmdText.slice(1).split(" ");
+  const command = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  const roleAllowed={
+    "mute":["admin","owner","mod"],
+    "unmute":["admin","owner","mod"],
+    "ban":["admin","owner"],
+    "unban":["admin","owner"],
+    "kick":["admin","owner"],
+    "clear":["admin","owner"],
+    "deleteall":["admin","owner"],
+    "color":["admin","owner","mod","user"],
+    "troll":["admin","owner","mod"],
+    "shake":["admin","owner","mod"],
+    "spam":["admin","owner"],
+    "rainbow":["admin","owner"],
+    "del":["admin","owner","mod"]
+  };
+
+  if(!roleAllowed[command] || !roleAllowed[command].includes(role)){
+    alert("You cannot use this command");
+    return;
+  }
+
+  // Run commands
+  switch(command){
+    case "mute":
+      if(args[0]) adminDB.child("muted/"+args[0]).set(true);
+      logCommand(cmdText); break;
+    case "unmute":
+      if(args[0]) adminDB.child("muted/"+args[0]).remove();
+      logCommand(cmdText); break;
+    case "ban":
+      if(args[0]){
+        adminDB.child("banned/"+args[0]).set(true);
+        onlineDB.child(args[0]).remove();
+      }
+      logCommand(cmdText); break;
+    case "unban":
+      if(args[0]) adminDB.child("banned/"+args[0]).remove();
+      logCommand(cmdText); break;
+    case "kick":
+      if(args[0]) onlineDB.child(args[0]).remove();
+      logCommand(cmdText); break;
+    case "clear":
+      if(isAdmin || role==="owner"){
+        chatDB.once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) chatDB.child(c.key).remove(); }); });
+      }
+      logCommand(cmdText); break;
+    case "deleteall":
+      if(isAdmin || role==="owner") chatDB.remove();
+      logCommand(cmdText); break;
+    case "color":
+      if(args[0]){
+        if(role==="user" || role==="owner" || role==="mod" || role==="admin"){
+          const safeColors=["red","green","blue","purple","orange","pink","yellow"];
+          if(safeColors.includes(args[0].toLowerCase())) userColors[username]=args[0].toLowerCase();
+        } else {
+          userColors[username]=args[0];
+        }
+      }
+      logCommand(cmdText); break;
+    case "troll":
+      if(args[0]){
+        const msgs = document.querySelectorAll(".msg");
+        msgs.forEach(m=>{
+          if(m.querySelector("b").innerText.includes(args[0])) m.style.transform="rotate(10deg)";
+        });
+      }
+      logCommand(cmdText); break;
+    case "shake":
+      if(args[0]){
+        const msgs = document.querySelectorAll(".msg");
+        msgs.forEach(m=>{
+          if(m.querySelector("b").innerText.includes(args[0])) m.classList.add("shake");
+          setTimeout(()=>m.classList.remove("shake"),500);
+        });
+      }
+      logCommand(cmdText); break;
+    case "spam":
+      if(args[0]){ for(let i=0;i<5;i++) chatDB.push({name:args[0],msg:"Spam!",role:"system",time:Date.now()}); }
+      logCommand(cmdText); break;
+    case "rainbow":
+      // just toggle a rainbow effect on your name (simple)
+      document.querySelectorAll(".msg b").forEach(el=>{ if(el.innerText.includes(username)) el.style.background="linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)"; });
+      logCommand(cmdText); break;
+    case "del":
+      if(args[0]) chatDB.child(args[0]).remove();
+      logCommand(cmdText); break;
+    default: break;
+  }
+}
+
+// Log commands at the top
+function logCommand(txt){
+  const log = document.createElement("div");
+  log.innerText=`Command executed: ${txt}`;
+  commandsLog.prepend(log);
+}
+
+// Chat render
+chatDB.limitToLast(100).on("child_added",snap=>{
+  const d=snap.val();
+  const k=snap.key;
+  let text=d.msg;
+  badWords.forEach(w=>{text=text.replace(new RegExp(w,"gi"), "***");});
+  const div=document.createElement("div");
+  div.className="msg";
+
+  const roleLabel = d.role && d.role!=="user"? d.role.toUpperCase():null;
+  let nameHTML = roleLabel ? `<span class="admin">${d.name} (${roleLabel})</span>`: d.name;
+  let color = (d.color && !d.admin) ? d.color : (d.admin ? "#ff5555" : "#fff");
+
+  if(d.isImage){
+    div.innerHTML=`<b style="color:${color}">${nameHTML}</b>:<br><img src="${text}">`;
+  } else {
+    div.innerHTML=`<b style="color:${color}">${nameHTML}</b>: ${text}`;
+  }
+
+  if(isAdmin){
+    div.innerHTML+=`<span class="btn" onclick="mute('${d.name}')">[mute]</span>`+
+                   `<span class="btn" onclick="ban('${d.name}')">[ban]</span>`+
+                   `<span class="btn" onclick="del('${k}')">[del]</span>`;
+    logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
+  }
+
+  if(isMod){
+    div.innerHTML+=`<span class="btn" onclick="mute('${d.name}')">[mute]</span>`+
+                   `<span class="btn" onclick="del('${k}')">[del]</span>`;
+    logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+});
+
+// Admin buttons
+function mute(u){ adminDB.child("muted/"+u).set(true); }
+function ban(u){ adminDB.child("banned/"+u).set(true); onlineDB.child(u).remove(); }
+function del(k){ chatDB.child(k).remove(); }
+function clearChat(){ if(isAdmin){ chatDB.once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) chatDB.child(c.key).remove(); }); }); } }
+function deleteHistory(){ if(isAdmin) chatDB.remove(); }
+function clearGifs(){ if(isAdmin){ chatDB.once("value",s=>{ s.forEach(c=>{ if(c.val().isImage) chatDB.child(c.key).remove(); }); }); } }
+function toggleLogs(){ logs.style.display=logs.style.display==="none"?"block":"none"; }
+
+function toggleGifPicker(){ gifPicker.style.display = gifPicker.style.display==="block"?"none":"block"; }
+function loadGifPicker(){ gifGrid.innerHTML=""; catGifs.forEach(g=>{ const img=document.createElement("img"); img.src=g; img.onclick=()=>sendGif(g); gifGrid.appendChild(img); }); }
+function sendGif(g){ chatDB.push({name:username,msg:g,admin:isAdmin,role:role,isImage:true,time:Date.now()}); gifPicker.style.display="none"; }
+
+loadGifPicker();
+</script>
+</body>
+</html>
