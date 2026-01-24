@@ -176,6 +176,23 @@ button:hover{ background: rgba(255,255,255,0.35); }
   box-shadow:0 8px 32px rgba(0,0,0,0.5);
 }
 
+#colorOptions{
+  position:absolute;
+  bottom:60px;
+  left:50%;
+  transform:translateX(-50%);
+  width:380px;
+  max-height:260px;
+  overflow-y:auto;
+  background:rgba(20,20,20,0.98);
+  border:2px solid rgba(255,255,255,0.3);
+  border-radius:12px;
+  padding:12px;
+  display:none;
+  z-index:999;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+
 .gifGrid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -195,6 +212,27 @@ button:hover{ background: rgba(255,255,255,0.35); }
   transform:scale(1.05);
 }
 
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr); /* 6 colors per row */
+  gap: 8px;
+}
+
+.colorGrid div {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 2px solid #555;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.colorGrid div:hover {
+  transform: scale(1.1);
+  border-color: #fff;
+}
+
+
 #gifBtn {
   padding:10px;
   font-size:20px;
@@ -205,6 +243,17 @@ button:hover{ background: rgba(255,255,255,0.35); }
   color:#fff;
 }
 #gifBtn:hover { background: rgba(255,255,255,0.35); }
+
+#colorBtn {
+  padding:10px;
+  font-size:20px;
+  background: rgba(255,255,255,0.2);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:6px;
+  cursor:pointer;
+  color:#fff;
+}
+#colorBtn:hover { background: rgba(255,255,255,0.35); }
 
 #sendBar input[type=text]{
   width:50%;
@@ -313,6 +362,7 @@ button:hover{ background: rgba(255,255,255,0.35); }
   <div id="chat" class="glass"></div>
 
   <div id="sendBar">
+    <button id="colorBtn" onclick="toggleColorOptions()">🔧</button>
     <button id="gifBtn" onclick="toggleGifPicker()">🎬</button>
     <input id="msg" type="text" placeholder="Type a message">
     <button onclick="send()">Send</button>
@@ -320,6 +370,8 @@ button:hover{ background: rgba(255,255,255,0.35); }
     <div id="gifPicker">
       <div class="gifGrid" id="gifGrid"></div>
     </div>
+
+    <div id="colorOptions"></div>
   </div>
 
   <div class="footer">@Snoopy’s Hub</div>
@@ -588,7 +640,8 @@ function handleCommand(cmdText){
     case "color":
       if(args[0]){
         if(role==="user" || role==="owner" || role==="mod" || role==="admin"){
-          const safeColors=["red",
+          const safeColors=[
+          "red",
           "green",
           "blue",
           "purple",
@@ -770,9 +823,15 @@ function clearGifs(){ if(isAdmin){ chatDB.once("value",s=>{ s.forEach(c=>{ if(c.
 function toggleLogs(){ logs.style.display=logs.style.display==="none"?"block":"none"; }
 
 function toggleGifPicker(){
-  loadGifPicker(); // 🔥 force refresh every open
+  loadGifPicker();
   gifPicker.style.display =
     gifPicker.style.display==="block" ? "none" : "block";
+}
+
+function toggleColorOptions(){
+  loadColorOptions();
+  colorOptions.style.display =
+    colorOptions.style.display==="block" ? "none" : "block";
 }
 
 function loadGifPicker(){
@@ -803,9 +862,44 @@ function loadGifPicker(){
   });
 }
 
+const colorsList = [
+  "red","#00FF00","blue","purple","orange","pink","yellow","cyan","magenta","lime",
+  "teal","navy","maroon","olive","gray","silver","brown","black","white","#FFD700", // gold
+  "coral","aqua","#FF00FF","#4B0082","violet","#40E0D0","salmon","#F5F5DC","lavender",
+  "tan","#FFDAB9","#98FF98","#FFFFF0","#D2691E","#DC143C","#007FFF","#FFBF00","#800020",
+  "#007BA7","#36454F","#B87333","#50C878","#00A86B","#F0E68C","#DDA0DD","#E0115F","#0F52BA",
+  "#8A2BE2","#30D5C8","#FA8072","#87CEEB","#708090","#4682B4","#483C32","#E97451","#89CFF0",
+  "#DE5D83","#FFC0CB","#1E90FF","#F0FFF0","#D2B48C","#FFE4C4","#00CED1","#BA55D3","#FF69B4",
+  "#FFFACD","#FFDB58","#DA70D6","#CCCCFF","#FF007F","#FFDEAD","#FFFF00","#B0E0E6","#BC8F8F"
+];
+
+
+function loadColorOptions(){
+  colorOptions.innerHTML = "";
+
+  const grid = document.createElement("div");
+  grid.className = "colorGrid";
+
+  colorsList.forEach(c => {
+    const btn = document.createElement("div");
+    btn.style.background = c;
+    btn.title = c;
+    btn.onclick = () => {
+      userColors[username] = c;
+      colorOptions.style.display = "none";
+    };
+    grid.appendChild(btn);
+  });
+
+  colorOptions.appendChild(grid);
+}
+
+
+
 function sendGif(g){ chatDB.push({name:username,msg:g,admin:isAdmin,role:role,isImage:true,time:Date.now()}); gifPicker.style.display="none"; }
 
 loadGifPicker();
+loadColorOptions();
 </script>
 </body>
 </html>
