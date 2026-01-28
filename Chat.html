@@ -420,6 +420,16 @@ const ownerGifs = [
   "https://media1.tenor.com/m/3uIhN0sm370AAAAd/kitty-minecraft.gif"
 ];
 
+// OWNER ONLY GIFs
+const modGifs = [
+  "https://media.tenor.com/HAU_nZjbw9gAAAAm/cat-dance.webp",
+  "https://media.tenor.com/3PzUZlh9nG4AAAAM/oh-wow.gif",
+  "https://media.tenor.com/islKHV6ibh0AAAAM/kitty-cat.gif",
+  "https://media.tenor.com/iALgQGVcpz4AAAAm/scemer-staring-cat.webp",
+  "https://media.tenor.com/0Q5IZ6e9pC8AAAAM/cat-cute-cat.gif",
+  "https://media.tenor.com/2_aRMC55UQsAAAAi/catcoin-cat-meme.gif"
+];
+
 
 // Cat GIFs
 const catGifs=[ 
@@ -850,6 +860,22 @@ function loadGifPicker(){
     const divider=document.createElement("div");
     divider.className="gifDivider";
     divider.innerText="OWNER ONLY";
+    gifGrid.appendChild(divider);
+  }
+
+  // Mods ONLY GIFS
+  if(role === "mod"){
+    modGifs.forEach(g=>{
+      const img=document.createElement("img");
+      img.src=g;
+      img.title="MODS ONLY";
+      img.onclick=()=>sendGif(g);
+      gifGrid.appendChild(img);
+    });
+
+    const divider=document.createElement("div");
+    divider.className="gifDivider";
+    divider.innerText="MODS ONLY";
     gifGrid.appendChild(divider);
   }
 
