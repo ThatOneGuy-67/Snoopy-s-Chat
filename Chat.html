@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-  <meta http-equiv="refresh" content="600">
 <head>
 <style>
 body {
@@ -76,7 +75,14 @@ button:hover{ background: rgba(255,255,255,0.35); }
   text-align:left;
 }
 
-.msg{ margin-bottom:6px; }
+.msg{ 
+  margin-bottom:8px;
+  font-size:16px;
+  line-height:1.4;
+}
+.msg b{
+  font-size:17px;
+}
 .msg img{
   max-width:300px;
   max-height:300px;
@@ -296,6 +302,66 @@ button:hover{ background: rgba(255,255,255,0.35); }
   letter-spacing: 1px;
 }
 
+.roomCard{
+  padding:8px 14px;
+  background: rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:8px;
+  cursor:pointer;
+  color:#fff;
+  font-size:12px;
+  transition:all 0.2s ease;
+}
+
+.roomCard:hover{
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.4);
+}
+
+.roomCard.active{
+  background: rgba(100,200,255,0.3);
+  border-color: rgba(100,200,255,0.8);
+  color:#6cf;
+}
+
+.roomCard small{
+  display:block;
+  font-size:10px;
+  color:#aaa;
+  margin-top:3px;
+}
+
+.statusText{
+  font-size:12px;
+  color:#888;
+  margin-left:5px;
+}
+
+.checkboxUser{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.checkboxUser input{
+  width:auto;
+  cursor:pointer;
+  margin:0;
+  padding:0;
+}
+
+.checkboxUser span{
+  font-size:13px;
+}
+
+.checkboxUser:hover{
+  background: rgba(255,255,255,0.15);
+}
+
 
 </style>
 </head>
@@ -328,8 +394,33 @@ button:hover{ background: rgba(255,255,255,0.35); }
   <button class="backBtn" onclick="goBack()">← Change Username</button>
 
   <h1>Snoopy’s Chat</h1>
-  <div id="online">Online: 0</div>
+  <div id="online">Online: 0</div>  <div id="currentRoomLabel" style="font-size:14px; color:#aaa; margin-bottom:10px;">Room: General</div>
 
+  <!-- PUBLIC ROOMS -->
+  <div style="margin-bottom:15px;">
+    <b style="font-size:13px; margin-left:5px;">📖 Public Chats</b>
+    <div id="publicRooms" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+  </div>
+
+  <!-- PRIVATE ROOMS -->
+  <div style="margin-bottom:15px;">
+    <b style="font-size:13px; margin-left:5px;">💬 Private Chats</b>
+    <div id="privateRooms" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+    <div style="margin-top:8px;">
+      <button onclick="toggleCreatePrivateChat()" style="font-size:12px; padding:6px 12px;">➕ New Private Chat</button>
+    </div>
+  </div>
+
+  <!-- CREATE PRIVATE CHAT MODAL -->
+  <div id="privateModal" style="display:none; margin-bottom:15px; background:rgba(30,50,80,0.8); border:1px solid rgba(100,150,200,0.5); border-radius:10px; padding:15px;">
+    <b>Create Private Chat</b>
+    <small style="display:block; margin-bottom:8px; color:#aaa;">Select one or more people to chat with</small>
+    <div id="privateUsers" style="display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:8px;">
+      <button onclick="createPrivateChat()" style="flex:1;">Create Chat</button>
+      <button onclick="toggleCreatePrivateChat()" style="flex:1;">Cancel</button>
+    </div>
+  </div>
   <div id="adminPanel">
     <b>ADMIN PANEL</b><br><br>
     <div id="commandsLog"></div>
@@ -390,9 +481,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 
-const chatDB = firebase.database().ref("globalChat");
 const adminDB = firebase.database().ref("admin");
 const onlineDB = firebase.database().ref("online");
+const chatsRoot = firebase.database().ref("chats");
+const roomsMetaDB = firebase.database().ref("roomsMeta");
 
 const ADMIN_PASSWORD="104";
 const MOD_PASSWORD="md";
@@ -404,7 +496,22 @@ let isAdmin=false;
 let isMod=false;
 let mutedUsers={};
 let userColors={};
+let onlineUsers={};
+let currentRoomId="general";
+let currentRoomMeta=null;
+let currentChatRef=null;
+let currentChatListener=null;
+let privateRoomsListener=null;
+let privateRoomsCache={};
 const badWords=["fuck","shit","bitch","asshole","nigger","nigga","1700300041"];
+const publicRoomList = [
+  { id:"general", name:"General", description:"Main chat for everyone", type:"public", gifOnly:false },
+  { id:"gifs-only", name:"GIFs Only", description:"Only GIFs and image posts", type:"public", gifOnly:true }
+];
+
+// Element references
+const currentRoomLabel = document.getElementById("currentRoomLabel");
+
 
 // OWNER ONLY GIFs
 const ownerGifs = [
@@ -418,14 +525,7 @@ const ownerGifs = [
   "https://media.tenor.com/yPN0L3Bk4QEAAAAm/hashcat-mcdonalds.webp",
   "https://media.tenor.com/YMj57yPt2SoAAAAM/cat-cat-meme.gif",
   "https://media.tenor.com/RFLHa8XdOO4AAAAM/cats-rice-hat.gif",
-  "https://media1.tenor.com/m/3uIhN0sm370AAAAd/kitty-minecraft.gif",
-  "https://media.tenor.com/HAU_nZjbw9gAAAAm/cat-dance.webp",
-  "https://media.tenor.com/3PzUZlh9nG4AAAAM/oh-wow.gif",
-  "https://media.tenor.com/islKHV6ibh0AAAAM/kitty-cat.gif",
-  "https://media.tenor.com/iALgQGVcpz4AAAAm/scemer-staring-cat.webp",
-  "https://media.tenor.com/0Q5IZ6e9pC8AAAAM/cat-cute-cat.gif",
-  "https://media.tenor.com/2_aRMC55UQsAAAAi/catcoin-cat-meme.gif",
-  "https://cdn.jsdelivr.net/gh/ThatOneGuy-67/Movies@main/Pics/Cat.gif"
+  "https://media1.tenor.com/m/3uIhN0sm370AAAAd/kitty-minecraft.gif"
 ];
 
 // OWNER ONLY GIFs
@@ -556,12 +656,7 @@ function enterChat(){
     if(username.length<3) return alert("Username too short");
   }
 
-  // Show admin panel only for admins/owner
-  if(role==="owner"||role==="admin"){
-    adminPanel.style.display="block";
-  } else {
-    adminPanel.style.display="none";
-  }
+  adminPanel.style.display = role==="owner" || role==="admin" ? "block" : "none";
 
   onlineDB.child(username).once("value",o=>{
     if(o.exists()) return alert("Username already in use");
@@ -570,20 +665,258 @@ function enterChat(){
 
       login.style.display="none";
       chatScreen.style.display="block";
-
       onlineDB.child(username).set(true);
       onlineDB.child(username).onDisconnect().remove();
+      localStorage.setItem("savedUsername", username);
+      localStorage.setItem("savedPassword", pass);
+      ensureBaseRooms();
+      renderPublicRooms();
+      renderPrivateUserPicker();
+      subscribeToPrivateRooms();
+      switchRoom("general", publicRoomList[0]);
     });
   });
 }
 
 function goBack(){
   onlineDB.child(username).remove();
+  unsubscribeCurrentRoom();
+  if(privateRoomsListener){
+    roomsMetaDB.off("value", privateRoomsListener);
+    privateRoomsListener = null;
+  }
   chatScreen.style.display="none";
   login.style.display="flex";
 }
 
-onlineDB.on("value",s=>{ online.innerText="Online: "+(s.numChildren()||0); });
+function ensureBaseRooms(){
+  publicRoomList.forEach(room=>{
+    roomsMetaDB.child(room.id).update({
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      type: room.type,
+      gifOnly: room.gifOnly
+    });
+  });
+}
+
+function unsubscribeCurrentRoom(){
+  if(currentChatRef && currentChatListener){
+    currentChatRef.off("child_added", currentChatListener);
+  }
+  currentChatRef = null;
+  currentChatListener = null;
+}
+
+function getActiveChatRef(){
+  return chatsRoot.child(currentRoomId);
+}
+
+function switchRoom(roomId, roomMeta){
+  currentRoomId = roomId;
+  currentRoomMeta = roomMeta;
+  currentRoomLabel.innerText = `Room: ${roomMeta.name}${roomMeta.gifOnly ? " (GIFs only)" : ""}`;
+  msg.placeholder = roomMeta.gifOnly ? "This room only allows GIFs" : "Type a message";
+  chat.innerHTML = "";
+  unsubscribeCurrentRoom();
+  currentChatRef = getActiveChatRef();
+  currentChatListener = snap => renderMessage(snap);
+  currentChatRef.limitToLast(100).on("child_added", currentChatListener);
+  renderPublicRooms();
+  renderPrivateRooms();
+}
+
+function renderPublicRooms(){
+  const publicRoomsEl = document.getElementById("publicRooms");
+  publicRoomsEl.innerHTML = "";
+
+  publicRoomList.forEach(room=>{
+    const btn = document.createElement("button");
+    btn.className = "roomCard" + (currentRoomId===room.id ? " active" : "");
+    btn.innerHTML = `${room.name}<small>${room.description}</small>`;
+    btn.onclick = ()=>switchRoom(room.id, room);
+    publicRoomsEl.appendChild(btn);
+  });
+}
+
+function renderPrivateRooms(){
+  const privateRoomsEl = document.getElementById("privateRooms");
+  privateRoomsEl.innerHTML = "";
+  const rooms = Object.values(privateRoomsCache).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+
+  if(!rooms.length){
+    privateRoomsEl.innerHTML = `<div class="statusText">No private chats yet.</div>`;
+    return;
+  }
+
+  rooms.forEach(room=>{
+    const container = document.createElement("div");
+    container.style.display = "flex";
+    container.style.alignItems = "center";
+    container.style.gap = "5px";
+    
+    const btn = document.createElement("button");
+    const members = Object.keys(room.participants || {}).filter(name=>name!==username);
+    btn.className = "roomCard" + (currentRoomId===room.id ? " active" : "");
+    btn.innerHTML = `${room.name || "Private Chat"}<small>${members.join(", ") || "Just you"}</small>`;
+    btn.onclick = ()=>switchRoom(room.id, room);
+    btn.style.flex = "1";
+    
+    container.appendChild(btn);
+    
+    // Leave/Delete buttons
+    const actionContainer = document.createElement("div");
+    actionContainer.style.display = "flex";
+    actionContainer.style.gap = "2px";
+    
+    // Delete button (only for creator)
+    if(room.createdBy === username){
+      const deleteBtn = document.createElement("button");
+      deleteBtn.innerHTML = "🗑️";
+      deleteBtn.title = "Delete Chat";
+      deleteBtn.style.fontSize = "12px";
+      deleteBtn.style.padding = "4px 8px";
+      deleteBtn.style.background = "rgba(255,100,100,0.3)";
+      deleteBtn.style.border = "1px solid rgba(255,100,100,0.5)";
+      deleteBtn.onclick = (e)=>{e.stopPropagation(); deletePrivateChat(room.id);};
+      actionContainer.appendChild(deleteBtn);
+    }
+    
+    // Leave button (don't show if only person left)
+    if(Object.keys(room.participants || {}).length > 1){
+      const leaveBtn = document.createElement("button");
+      leaveBtn.innerHTML = "🚪";
+      leaveBtn.title = "Leave Chat";
+      leaveBtn.style.fontSize = "12px";
+      leaveBtn.style.padding = "4px 8px";
+      leaveBtn.style.background = "rgba(255,200,100,0.3)";
+      leaveBtn.style.border = "1px solid rgba(255,200,100,0.5)";
+      leaveBtn.onclick = (e)=>{e.stopPropagation(); leavePrivateChat(room.id);};
+      actionContainer.appendChild(leaveBtn);
+    }
+    
+    container.appendChild(actionContainer);
+    privateRoomsEl.appendChild(container);
+  });
+}
+
+function renderPrivateUserPicker(){
+  const privateUsersEl = document.getElementById("privateUsers");
+  privateUsersEl.innerHTML = "";
+  const others = Object.keys(onlineUsers).filter(name=>name!==username).sort();
+
+  if(!others.length){
+    privateUsersEl.innerHTML = `<div class="statusText">Nobody else is online.</div>`;
+    return;
+  }
+
+  others.forEach(name=>{
+    const label = document.createElement("label");
+    label.className = "checkboxUser";
+    label.innerHTML = `<input type="checkbox" value="${name}"><span>${name}</span>`;
+    privateUsersEl.appendChild(label);
+  });
+}
+
+function subscribeToPrivateRooms(){
+  if(privateRoomsListener){
+    roomsMetaDB.off("value", privateRoomsListener);
+  }
+
+  privateRoomsListener = snap=>{
+    const allRooms = snap.val() || {};
+    privateRoomsCache = {};
+
+    Object.keys(allRooms).forEach(id=>{
+      const room = allRooms[id];
+      if(room.type !== "private") return;
+      if(!room.participants || !room.participants[username]) return;
+      
+      // Auto-delete empty rooms
+      const participantCount = Object.keys(room.participants || {}).length;
+      if(participantCount === 0){
+        roomsMetaDB.child(id).remove();
+        chatsRoot.child(id).remove();
+        return;
+      }
+      
+      privateRoomsCache[id] = { ...room, id };
+    });
+
+    renderPrivateRooms();
+
+    if(currentRoomMeta && currentRoomMeta.type==="private" && !privateRoomsCache[currentRoomId]){
+      switchRoom("general", publicRoomList[0]);
+    }
+  };
+
+  roomsMetaDB.on("value", privateRoomsListener);
+}
+
+function toggleCreatePrivateChat(){
+  const modal = document.getElementById("privateModal");
+  modal.style.display = modal.style.display === "none" ? "block" : "none";
+}
+
+function createPrivateChat(){
+  const checkboxes = document.querySelectorAll("#privateUsers input:checked");
+  if(!checkboxes.length) return alert("Select at least one person");
+
+  const selectedUsers = Array.from(checkboxes).map(cb => cb.value);
+  const allParticipants = [username, ...selectedUsers];
+  const roomId = "private-" + Date.now() + "-" + Math.random().toString(36).substr(2,9);
+  const participants = {};
+  allParticipants.forEach(u => participants[u] = true);
+
+  const roomName = selectedUsers.length === 1 ? selectedUsers[0] : selectedUsers.join(", ");
+
+  roomsMetaDB.child(roomId).set({
+    id: roomId,
+    type: "private",
+    name: roomName,
+    participants: participants,
+    createdAt: Date.now(),
+    createdBy: username,
+    gifOnly: false
+  });
+
+  toggleCreatePrivateChat();
+  switchRoom(roomId, { id: roomId, type: "private", name: roomName, gifOnly: false });
+}
+
+function leavePrivateChat(roomId){
+  if(!confirm("Are you sure you want to leave this chat?")) return;
+  
+  const roomRef = roomsMetaDB.child(roomId);
+  roomRef.child("participants").child(username).remove();
+  
+  // If this was the current room, switch to general
+  if(currentRoomId === roomId){
+    switchRoom("general", publicRoomList[0]);
+  }
+}
+
+function deletePrivateChat(roomId){
+  if(!confirm("Are you sure you want to delete this chat? This will remove it for everyone.")) return;
+  
+  // Delete the room metadata
+  roomsMetaDB.child(roomId).remove();
+  
+  // Delete all chat messages
+  chatsRoot.child(roomId).remove();
+  
+  // If this was the current room, switch to general
+  if(currentRoomId === roomId){
+    switchRoom("general", publicRoomList[0]);
+  }
+}
+
+onlineDB.on("value",s=>{
+  onlineUsers=s.val()||{};
+  online.innerText="Online: "+(s.numChildren()||0);
+  renderPrivateUserPicker();
+});
 adminDB.child("muted").on("value",s=>mutedUsers=s.val()||{});
 
 // Send handler
@@ -591,11 +924,12 @@ function send(){
   const m=msg.value.trim();
   if(!m) return;
   if(mutedUsers[username]) return alert("You are muted");
+  if(currentRoomMeta && currentRoomMeta.gifOnly) return alert("This room only allows GIFs. Use the GIF button.");
 
   if(m.startsWith("/")){
     handleCommand(m);
   } else {
-    chatDB.push({name:username,msg:m,admin:isAdmin,role:role,color:userColors[username]||null,time:Date.now()});
+    getActiveChatRef().push({name:username,msg:m,admin:isAdmin,role:role,color:userColors[username]||null,time:Date.now(),roomId:currentRoomId});
   }
   msg.value="";
 }
@@ -605,6 +939,7 @@ function handleCommand(cmdText){
   const parts = cmdText.slice(1).split(" ");
   const command = parts[0].toLowerCase();
   const args = parts.slice(1);
+  const activeChatRef = getActiveChatRef();
 
   const roleAllowed={
     "mute":["admin","owner","mod"],
@@ -649,11 +984,11 @@ function handleCommand(cmdText){
       logCommand(cmdText); break;
     case "clear":
       if(isAdmin || role==="owner"){
-        chatDB.once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) chatDB.child(c.key).remove(); }); });
+        activeChatRef.once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) activeChatRef.child(c.key).remove(); }); });
       }
       logCommand(cmdText); break;
     case "deleteall":
-      if(isAdmin || role==="owner") chatDB.remove();
+      if(isAdmin || role==="owner") activeChatRef.remove();
       logCommand(cmdText); break;
     case "color":
       if(args[0]){
@@ -795,8 +1130,8 @@ function logCommand(txt){
   commandsLog.prepend(log);
 }
 
-// Chat render
-chatDB.limitToLast(100).on("child_added",snap=>{
+// Message renderer
+function renderMessage(snap){
   const d=snap.val();
   const k=snap.key;
   let text=d.msg;
@@ -815,29 +1150,29 @@ chatDB.limitToLast(100).on("child_added",snap=>{
   }
 
   if(isAdmin){
-    div.innerHTML+=`<span class="btn" onclick="mute('${d.name}')">[mute]</span>`+
-                   `<span class="btn" onclick="ban('${d.name}')">[ban]</span>`+
-                   `<span class="btn" onclick="del('${k}')">[del]</span>`;
-    logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
+    div.innerHTML+=`<span class="btn" onclick="muteUser('${d.name}')">[mute]</span>`+
+                   `<span class="btn" onclick="banUser('${d.name}')">[ban]</span>`+
+                   `<span class="btn" onclick="deleteMsg('${k}')">[del]</span>`;
+    if(logs) logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
   }
 
   if(isMod){
-    div.innerHTML+=`<span class="btn" onclick="mute('${d.name}')">[mute]</span>`+
-                   `<span class="btn" onclick="del('${k}')">[del]</span>`;
-    logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
+    div.innerHTML+=`<span class="btn" onclick="muteUser('${d.name}')">[mute]</span>`+
+                   `<span class="btn" onclick="deleteMsg('${k}')">[del]</span>`;
+    if(logs) logs.innerHTML+=`<div>${d.name}: ${text}</div>`;
   }
 
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
-});
+}
 
 // Admin buttons
-function mute(u){ adminDB.child("muted/"+u).set(true); }
-function ban(u){ adminDB.child("banned/"+u).set(true); onlineDB.child(u).remove(); }
-function del(k){ chatDB.child(k).remove(); }
-function clearChat(){ if(isAdmin){ chatDB.once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) chatDB.child(c.key).remove(); }); }); } }
-function deleteHistory(){ if(isAdmin) chatDB.remove(); }
-function clearGifs(){ if(isAdmin){ chatDB.once("value",s=>{ s.forEach(c=>{ if(c.val().isImage) chatDB.child(c.key).remove(); }); }); } }
+function muteUser(u){ adminDB.child("muted/"+u).set(true); }
+function banUser(u){ adminDB.child("banned/"+u).set(true); onlineDB.child(u).remove(); }
+function deleteMsg(k){ getActiveChatRef().child(k).remove(); }
+function clearChat(){ if(isAdmin){ getActiveChatRef().once("value",s=>{ s.forEach(c=>{ if(!c.val().admin) getActiveChatRef().child(c.key).remove(); }); }); } }
+function deleteHistory(){ if(isAdmin) getActiveChatRef().remove(); }
+function clearGifs(){ if(isAdmin){ getActiveChatRef().once("value",s=>{ s.forEach(c=>{ if(c.val().isImage) getActiveChatRef().child(c.key).remove(); }); }); } }
 function toggleLogs(){ logs.style.display=logs.style.display==="none"?"block":"none"; }
 
 function toggleGifPicker(){
@@ -898,7 +1233,7 @@ function loadGifPicker(){
 
 const colorsList = [
   "red","#00FF00","blue","purple","orange","pink","yellow","cyan","magenta","lime",
-  "teal","navy","maroon","olive","gray","silver","brown","black","white","#FFD700",
+  "teal","navy","maroon","olive","gray","silver","brown","black","white","#FFD700", // gold
   "coral","aqua","#FF00FF","#4B0082","violet","#40E0D0","salmon","#F5F5DC","lavender",
   "tan","#FFDAB9","#98FF98","#FFFFF0","#D2691E","#DC143C","#007FFF","#FFBF00","#800020",
   "#007BA7","#36454F","#B87333","#50C878","#00A86B","#F0E68C","#DDA0DD","#E0115F","#0F52BA",
@@ -930,7 +1265,17 @@ function loadColorOptions(){
 
 
 
-function sendGif(g){ chatDB.push({name:username,msg:g,admin:isAdmin,role:role,isImage:true,time:Date.now()}); gifPicker.style.display="none"; }
+function sendGif(g){ getActiveChatRef().push({name:username,msg:g,admin:isAdmin,role:role,isImage:true,time:Date.now(),roomId:currentRoomId}); gifPicker.style.display="none"; }
+
+// Load saved username and password on page load
+const savedUsername = localStorage.getItem("savedUsername");
+const savedPassword = localStorage.getItem("savedPassword");
+if(savedUsername){
+  usernameInput.value = savedUsername;
+}
+if(savedPassword){
+  adminPass.value = savedPassword;
+}
 
 loadGifPicker();
 loadColorOptions();
