@@ -1277,6 +1277,15 @@ if(savedPassword){
   adminPass.value = savedPassword;
 }
 
+const msgInput = document.getElementById("msg");
+
+msgInput.addEventListener("keydown", function(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
 loadGifPicker();
 loadColorOptions();
 </script>
